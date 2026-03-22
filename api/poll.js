@@ -1,7 +1,7 @@
 const https = require('https');
 
 const MAX_STOCK_1V1 = 888686;
-const MAX_STOCK_1V7 = 999999300;
+const MAX_STOCK_1V7 = 999999288;
 const ITEM1_ID = '7553485595';
 const ITEM2_ID = '7555500440';
 const MEMBERS = ['KUNHO','YOUMIN','XAYDEN','MINJE','MASAMI','HYUNBIN','ON:N'];
