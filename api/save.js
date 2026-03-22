@@ -12,8 +12,8 @@ async function redis(token, url, command) {
 module.exports = async (req, res) => {
   if (req.method !== 'POST') { res.status(405).end(); return; }
 
-  const url   = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  const url   = process.env.KV_REST_API_URL;
+  const token = process.env.KV_REST_API_TOKEN;
   if (!url || !token) { res.status(500).json({ error: 'Redis not configured' }); return; }
 
   const { key, ts, sold, delta } = req.body;
