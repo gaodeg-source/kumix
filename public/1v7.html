@@ -121,8 +121,10 @@
       const sales = MAX_STOCK - stock;
       const ts = tsNow();
       const delta = prevSales !== null ? sales - prevSales : null;
-      addRow(ts, sales, delta);
-      saveEntry(ts, sales, delta);
+      if (delta === null || delta !== 0) {
+        addRow(ts, sales, delta);
+        saveEntry(ts, sales, delta);
+      }
       document.getElementById('sum-sold').textContent = fmt(sales);
       document.getElementById('sum-stock').textContent = fmt(stock);
       if (delta !== null && delta !== 0) {

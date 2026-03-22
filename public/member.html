@@ -137,8 +137,11 @@
       const sales = MAX_STOCK - info.stock;
       const ts = tsNow();
       const delta = prevSales !== null ? sales - prevSales : null;
-      addRow(ts, sales, delta);
-      saveEntry(MEMBER, ts, sales, delta);
+      // only log a row when stock actually changes
+      if (delta === null || delta !== 0) {
+        addRow(ts, sales, delta);
+        saveEntry(MEMBER, ts, sales, delta);
+      }
       document.getElementById('sum-sold').textContent = fmt(sales);
       document.getElementById('sum-stock').textContent = fmt(info.stock);
       if (delta !== null && delta !== 0) {
