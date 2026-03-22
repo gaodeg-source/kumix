@@ -94,12 +94,35 @@
       tbody.prepend(tr);
     }
 
+    async function saveEntry(ts, sold, delta) {
+      try {
+        await fetch('/api/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key: '1v7', ts, sold, delta }),
+        });
+      } catch(e) { /* non-critical */ }
+    }
+
+    async function loadHistory() {
+      try {
+        const entries = await fetch('/api/history?key=1v7').then(r => r.json());
+        if (!entries.length) return;
+        [...entries].reverse().forEach(e => addRow(e.ts, e.sold, e.delta));
+        const latest = entries[0];
+        prevSales = latest.sold;
+        document.getElementById('sum-sold').textContent = fmt(latest.sold);
+        document.getElementById('sum-stock').textContent = fmt(MAX_STOCK - latest.sold);
+      } catch(e) { /* no history yet */ }
+    }
+
     function update(data) {
       const stock = data.result.itemStock;
       const sales = MAX_STOCK - stock;
       const ts = tsNow();
       const delta = prevSales !== null ? sales - prevSales : null;
       addRow(ts, sales, delta);
+      saveEntry(ts, sales, delta);
       document.getElementById('sum-sold').textContent = fmt(sales);
       document.getElementById('sum-stock').textContent = fmt(stock);
       if (delta !== null && delta !== 0) {
@@ -140,8 +163,10 @@
       startCountdown();
     }
 
-    fetchStock();
-    setInterval(fetchStock, INTERVAL);
+    loadHistory().then(() => {
+      fetchStock();
+      setInterval(fetchStock, INTERVAL);
+    });
   </script>
 </body>
 </html>

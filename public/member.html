@@ -107,6 +107,29 @@
       tbody.prepend(tr);
     }
 
+    async function saveEntry(key, ts, sold, delta) {
+      try {
+        await fetch('/api/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key, ts, sold, delta }),
+        });
+      } catch(e) { /* non-critical */ }
+    }
+
+    async function loadHistory() {
+      try {
+        const entries = await fetch('/api/history?key=' + encodeURIComponent(MEMBER)).then(r => r.json());
+        if (!entries.length) return;
+        // entries are newest-first from Redis; render them oldest-first into table
+        [...entries].reverse().forEach(e => addRow(e.ts, e.sold, e.delta));
+        const latest = entries[0];
+        prevSales = latest.sold;
+        document.getElementById('sum-sold').textContent = fmt(latest.sold);
+        document.getElementById('sum-stock').textContent = fmt(MAX_STOCK - latest.sold);
+      } catch(e) { /* no history yet */ }
+    }
+
     function update(data) {
       const sku = data.result.skuInfos.find(s => s.skuInfo.title === MEMBER);
       if (!sku) return;
@@ -115,6 +138,7 @@
       const ts = tsNow();
       const delta = prevSales !== null ? sales - prevSales : null;
       addRow(ts, sales, delta);
+      saveEntry(MEMBER, ts, sales, delta);
       document.getElementById('sum-sold').textContent = fmt(sales);
       document.getElementById('sum-stock').textContent = fmt(info.stock);
       if (delta !== null && delta !== 0) {
@@ -155,8 +179,10 @@
       startCountdown();
     }
 
-    fetchStock();
-    setInterval(fetchStock, INTERVAL);
+    loadHistory().then(() => {
+      fetchStock();
+      setInterval(fetchStock, INTERVAL);
+    });
   </script>
 </body>
 </html>
