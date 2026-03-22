@@ -13,6 +13,14 @@ module.exports = async (req, res) => {
   const token = process.env.KV_REST_API_TOKEN;
   if (!url || !token) { res.status(500).json({ error: 'Redis not configured' }); return; }
 
+  // ?delete=KUNHO → wipe that key entirely
+  if (req.query.delete) {
+    const redisKey = 'log:' + req.query.delete;
+    await redis(token, url, ['DEL', redisKey]);
+    res.status(200).json({ ok: true, deleted: req.query.delete });
+    return;
+  }
+
   const keys = ['KUNHO','YOUMIN','XAYDEN','MINJE','MASAMI','HYUNBIN','ON:N','1v7'];
   const report = {};
 
