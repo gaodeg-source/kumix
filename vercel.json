@@ -2,5 +2,8 @@
   "rewrites": [
     { "source": "/member/:name", "destination": "/member.html" },
     { "source": "/1v7", "destination": "/1v7.html" }
+  ],
+  "crons": [
+    { "path": "/api/poll", "schedule": "* * * * *" }
   ]
 }
