@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Member — sold_log</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #111; min-height: 100vh; padding: 32px 24px; }
+    a { color: inherit; text-decoration: none; }
+    .back { font-size: 13px; color: #888; display: inline-block; margin-bottom: 20px; transition: color 0.2s; }
+    .back:hover { color: #333; }
+    h1 { font-size: 18px; font-weight: 700; margin-bottom: 2px; }
+    .meta { font-size: 13px; color: #888; margin-bottom: 20px; }
+    .status-bar { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #888; margin-bottom: 20px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #ccc; }
+    .dot.active { background: #16a34a; }
+    .dot.error  { background: #dc2626; }
+    .next-refresh { font-size: 12px; color: #aaa; margin-left: auto; }
+    .summary { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+    .summary-card { background: #fff; border: 1px solid #e0e0e0; border-radius: 10px; padding: 14px 18px; min-width: 140px; }
+    .summary-label { font-size: 11px; color: #aaa; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; }
+    .summary-value { font-size: 26px; font-weight: 800; color: #111; }
+    .summary-sub { font-size: 12px; color: #aaa; margin-top: 2px; }
+    table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 10px; overflow: hidden; border: 1px solid #e0e0e0; }
+    caption { text-align: left; font-size: 15px; font-weight: 700; padding: 14px 16px 10px; background: #fff; border: 1px solid #e0e0e0; border-bottom: none; border-radius: 10px 10px 0 0; }
+    th { text-align: left; font-size: 13px; font-weight: 700; padding: 10px 16px; background: #fff; border-bottom: 2px solid #e0e0e0; color: #111; }
+    th:last-child, td:last-child { text-align: right; }
+    td { padding: 9px 16px; font-size: 14px; font-weight: 600; border-bottom: 1px solid #f0f0f0; color: #111; }
+    tr:last-child td { border-bottom: none; }
+    td.ts { font-variant-numeric: tabular-nums; color: #333; }
+    td.sold-val { font-variant-numeric: tabular-nums; }
+    td.delta { font-variant-numeric: tabular-nums; text-align: right; }
+    td.delta.up   { color: #16a34a; }
+    td.delta.down { color: #dc2626; }
+    td.delta.zero { color: #aaa; }
+  </style>
+</head>
+<body>
+  <a class="back" href="/">← All Members</a>
+  <h1 id="page-title">…-sold_log</h1>
+  <p class="meta" id="page-meta"></p>
+
+  <div class="status-bar">
+    <div class="dot" id="dot"></div>
+    <span id="status-text">Connecting...</span>
+    <span class="next-refresh" id="next-refresh"></span>
+  </div>
+
+  <div class="summary">
+    <div class="summary-card">
+      <div class="summary-label">Total Sold</div>
+      <div class="summary-value" id="sum-sold">—</div>
+      <div class="summary-sub">cumulative</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-label">Last Change</div>
+      <div class="summary-value" id="sum-delta">—</div>
+      <div class="summary-sub" id="sum-delta-time">&nbsp;</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-label">Stock Left</div>
+      <div class="summary-value" id="sum-stock">—</div>
+      <div class="summary-sub">of 888,686</div>
+    </div>
+  </div>
+
+  <table>
+    <caption id="table-caption">sold_log</caption>
+    <thead><tr><th>timestamp</th><th>sold</th><th>change</th></tr></thead>
+    <tbody id="log-body"></tbody>
+  </table>
+
+  <script>
+    const MAX_STOCK = 888686;
+    const MEMBERS = ['KUNHO','YOUMIN','XAYDEN','MINJE','MASAMI','HYUNBIN','ON:N'];
+    const INTERVAL = 15000;
+    let prevSales = null, countdownTimer;
+
+    // read member from URL path: /member/KUNHO
+    const MEMBER = decodeURIComponent(window.location.pathname.split('/').pop());
+
+    if (!MEMBERS.includes(MEMBER)) {
+      document.body.innerHTML = '<p style="padding:32px;color:#888">Member not found. <a href="/">← Back</a></p>';
+    } else {
+      document.title = MEMBER + '-sold_log';
+      document.getElementById('page-title').textContent = MEMBER + '-sold_log';
+      document.getElementById('page-meta').textContent = 'Item #7553485595 · Base stock: 888,686';
+      document.getElementById('table-caption').textContent = MEMBER + '-sold_log';
+    }
+
+    function fmt(n) { return n.toLocaleString(); }
+    function tsNow() {
+      const d = new Date(), pad = n => String(n).padStart(2,'0');
+      return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+' '+pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());
+    }
+
+    function addRow(ts, sales, delta) {
+      const tbody = document.getElementById('log-body');
+      const tr = document.createElement('tr');
+      let dc = 'delta zero', dt = '—';
+      if (delta !== null) {
+        if (delta > 0)      { dc = 'delta up';   dt = '+' + fmt(delta); }
+        else if (delta < 0) { dc = 'delta down';  dt = fmt(delta); }
+      }
+      tr.innerHTML = '<td class="ts">'+ts+'</td><td class="sold-val">'+fmt(sales)+'</td><td class="'+dc+'">'+dt+'</td>';
+      tbody.prepend(tr);
+    }
+
+    function update(data) {
+      const sku = data.result.skuInfos.find(s => s.skuInfo.title === MEMBER);
+      if (!sku) return;
+      const info = sku.skuInfo;
+      const sales = MAX_STOCK - info.stock;
+      const ts = tsNow();
+      const delta = prevSales !== null ? sales - prevSales : null;
+      addRow(ts, sales, delta);
+      document.getElementById('sum-sold').textContent = fmt(sales);
+      document.getElementById('sum-stock').textContent = fmt(info.stock);
+      if (delta !== null && delta !== 0) {
+        const el = document.getElementById('sum-delta');
+        el.textContent = (delta > 0 ? '+' : '') + fmt(delta);
+        el.style.color = delta > 0 ? '#16a34a' : '#dc2626';
+        document.getElementById('sum-delta-time').textContent = 'at ' + ts.split(' ')[1];
+      } else if (prevSales === null) {
+        document.getElementById('sum-delta').textContent = '—';
+      }
+      prevSales = sales;
+    }
+
+    function setStatus(ok, text) {
+      document.getElementById('dot').className = 'dot ' + (ok ? 'active' : 'error');
+      document.getElementById('status-text').textContent = text;
+    }
+
+    function startCountdown() {
+      clearInterval(countdownTimer);
+      let c = INTERVAL / 1000;
+      const el = document.getElementById('next-refresh');
+      el.textContent = 'Next refresh in ' + c + 's';
+      countdownTimer = setInterval(() => {
+        c--;
+        el.textContent = c > 0 ? 'Next refresh in ' + c + 's' : 'Refreshing...';
+        if (c <= 0) clearInterval(countdownTimer);
+      }, 1000);
+    }
+
+    async function fetchStock() {
+      try {
+        const data = await fetch('/api/stock').then(r => r.json());
+        if (data.status.code !== 0) throw new Error(data.status.message);
+        update(data);
+        setStatus(true, 'Live · ' + tsNow().split(' ')[1]);
+      } catch(e) { setStatus(false, 'Error: ' + e.message); }
+      startCountdown();
+    }
+
+    fetchStock();
+    setInterval(fetchStock, INTERVAL);
+  </script>
+</body>
+</html>
