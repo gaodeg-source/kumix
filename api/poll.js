@@ -18,7 +18,7 @@ const ITEM_CONFIG = {
   },
   '7525118051': {
     type: 'single',
-    maxStock: 94685877
+    maxStock: 94687270
   }
 };
 
