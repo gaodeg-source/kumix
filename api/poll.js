@@ -34,6 +34,10 @@ const ITEM_CONFIG = {
   },
   '7525003573': {
     stocks: { 'KUNHO': 99735, 'YOUMIN': 999850, 'XAYDEN': 999255, 'MINJE': 999530, 'MASAMI': 999205, 'HYUNBIN': 999800, 'ON:N': 999905 }
+  },
+  '7524652103': {
+    type: 'single',
+    maxStock: 999957270
   }
 };
 
