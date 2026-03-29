@@ -64,6 +64,11 @@
       '7527002904': {
         label: 'Day1赶鸡游戏',
         stocks: { 'KUNHO': 999590, 'YOUMIN': 999805, 'XAYDEN': 999696, 'MINJE': 999780, 'MASAMI': 999866, 'HYUNBIN': 999755, 'ON:N': 999866 }
+      },
+      '7525118051': {
+        label: 'Day1美高主题',
+        type: 'single',
+        maxStock: 94685877
       }
     };
     // slots 2-13 filled in as links are added
@@ -73,7 +78,8 @@
       '7526988904',
       '7719424307',
       '7527002904',
-      null, null,
+      '7525118051',
+      null,
       null, null, null, null, null, null
     ];
     const INTERVAL = 15000;
@@ -114,11 +120,15 @@
           if (data.status.code !== 0) return;
           const cfg = ITEM_CONFIG[id];
           let total = 0;
-          data.result.skuInfos.forEach(sku => {
-            const info = sku.skuInfo;
-            const max = cfg.stocks[canonicalTitle(info.title)];
-            if (max !== undefined) total += max - info.stock;
-          });
+          if (cfg.type === 'single') {
+            total = cfg.maxStock - data.result.itemStock;
+          } else {
+            data.result.skuInfos.forEach(sku => {
+              const info = sku.skuInfo;
+              const max = cfg.stocks[canonicalTitle(info.title)];
+              if (max !== undefined) total += max - info.stock;
+            });
+          }
           const el = document.getElementById('total-' + id);
           if (el) {
             const prev = prevTotals[id];

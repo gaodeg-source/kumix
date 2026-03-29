@@ -15,6 +15,10 @@ const ITEM_CONFIG = {
   },
   '7527002904': {
     stocks: { 'KUNHO': 999590, 'YOUMIN': 999805, 'XAYDEN': 999696, 'MINJE': 999780, 'MASAMI': 999866, 'HYUNBIN': 999755, 'ON:N': 999866 }
+  },
+  '7525118051': {
+    type: 'single',
+    maxStock: 94685877
   }
 };
 
@@ -76,15 +80,21 @@ module.exports = async (req, res) => {
       const data = await fetchJson(url);
       if (data.status.code !== 0) continue;
 
-      for (const sku of data.result.skuInfos) {
-        const info = sku.skuInfo;
-        const title = canonicalTitle(info.title);
-        const max = cfg.stocks[title];
-        if (max === undefined) continue;
-        const sales = max - info.stock;
-        const key = itemId + ':' + title;
-        const changed = await saveIfChanged(redisUrl, redisToken, key, sales);
-        if (changed) changes.push(key + '=' + sales);
+      if (cfg.type === 'single') {
+        const sales = cfg.maxStock - data.result.itemStock;
+        const changed = await saveIfChanged(redisUrl, redisToken, itemId, sales);
+        if (changed) changes.push(itemId + '=' + sales);
+      } else {
+        for (const sku of data.result.skuInfos) {
+          const info = sku.skuInfo;
+          const title = canonicalTitle(info.title);
+          const max = cfg.stocks[title];
+          if (max === undefined) continue;
+          const sales = max - info.stock;
+          const key = itemId + ':' + title;
+          const changed = await saveIfChanged(redisUrl, redisToken, key, sales);
+          if (changed) changes.push(key + '=' + sales);
+        }
       }
     }
   } catch (e) {

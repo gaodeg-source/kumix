@@ -85,6 +85,11 @@
       '7527002904': {
         label: 'Day1赶鸡游戏',
         stocks: { 'KUNHO': 999590, 'YOUMIN': 999805, 'XAYDEN': 999696, 'MINJE': 999780, 'MASAMI': 999866, 'HYUNBIN': 999755, 'ON:N': 999866 }
+      },
+      '7525118051': {
+        label: 'Day1美高主题',
+        type: 'single',
+        maxStock: 94685877
       }
     };
     const DEFAULT_MEMBERS = ['KUNHO', 'YOUMIN', 'XAYDEN', 'MINJE', 'MASAMI', 'HYUNBIN', 'ON:N'];
@@ -99,7 +104,9 @@
     } else {
       document.title = cfg.label + ' — Sales Tracker';
       document.getElementById('page-title').textContent = cfg.label;
-      document.getElementById('page-meta').textContent = 'Item #' + ITEM_ID + ' · ' + MEMBERS.length + ' members';
+      document.getElementById('page-meta').textContent = cfg.type === 'single'
+        ? 'Item #' + ITEM_ID + ' · Single SKU'
+        : 'Item #' + ITEM_ID + ' · ' + MEMBERS.length + ' members';
     }
 
     let prevSales = {}, countdownTimer;
@@ -109,7 +116,7 @@
 
     function buildGrid() {
       const grid = document.getElementById('grid');
-      if (grid.children.length || !cfg) return;
+      if (grid.children.length || !cfg || cfg.type === 'single') return;
       MEMBERS.forEach(m => {
         const card = document.createElement('a');
         card.className = 'card';
@@ -129,6 +136,11 @@
 
     function update(data) {
       if (!cfg) return;
+      if (cfg.type === 'single') {
+        const sales = cfg.maxStock - data.result.itemStock;
+        document.getElementById('total-sales').textContent = fmt(sales);
+        return;
+      }
       let total = 0;
       data.result.skuInfos.forEach(sku => {
         const info = sku.skuInfo;
