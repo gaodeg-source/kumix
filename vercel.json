@@ -1,6 +1,6 @@
 {
   "rewrites": [
-    { "source": "/member/:name", "destination": "/member.html" },
-    { "source": "/1v7", "destination": "/1v7.html" }
+    { "source": "/item/:itemId/:member", "destination": "/member.html" },
+    { "source": "/item/:itemId", "destination": "/item.html" }
   ]
 }

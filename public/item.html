@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Item — Sales Tracker</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #111; min-height: 100vh; padding: 32px 24px; }
+    a { color: inherit; text-decoration: none; }
+    .back { font-size: 13px; color: #888; display: inline-block; margin-bottom: 20px; transition: color 0.2s; }
+    .back:hover { color: #333; }
+    h1 { font-size: 18px; font-weight: 700; margin-bottom: 2px; }
+    .meta { font-size: 13px; color: #888; margin-bottom: 16px; }
+    .warning { background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 10px 14px; font-size: 12px; color: #92400e; margin-bottom: 20px; display: flex; gap: 8px; align-items: flex-start; line-height: 1.5; }
+    .status-bar { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #888; margin-bottom: 20px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #ccc; }
+    .dot.active { background: #16a34a; }
+    .dot.error  { background: #dc2626; }
+    .next-refresh { font-size: 12px; color: #aaa; margin-left: auto; }
+    .total-bar { background: #fff; border: 1px solid #e0e0e0; border-radius: 10px; padding: 16px 20px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; }
+    .total-label { font-size: 13px; color: #888; }
+    .total-value { font-size: 24px; font-weight: 800; }
+    .section-label { font-size: 11px; font-weight: 700; color: #aaa; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 10px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+    .card { background: #fff; border: 1px solid #e0e0e0; border-radius: 10px; padding: 18px 20px; display: block; transition: border-color 0.2s, box-shadow 0.2s; }
+    .card:hover { border-color: #aaa; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+    .card.changed { border-color: #16a34a; }
+    .member-name { font-size: 11px; font-weight: 700; color: #888; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 10px; }
+    .sales-row { display: flex; align-items: baseline; gap: 8px; }
+    .sales-count { font-size: 32px; font-weight: 800; color: #111; line-height: 1; }
+    .sales-label { font-size: 12px; color: #aaa; }
+    .stock-sub { font-size: 11px; color: #bbb; margin-top: 5px; }
+    .delta-badge { display: inline-block; font-size: 12px; font-weight: 700; border-radius: 5px; padding: 1px 7px; margin-top: 6px; opacity: 0; transition: opacity 0.3s; }
+    .delta-badge.up   { color: #16a34a; background: #dcfce7; }
+    .delta-badge.down { color: #dc2626; background: #fee2e2; }
+    .delta-badge.visible { opacity: 1; }
+  </style>
+</head>
+<body>
+  <a class="back" href="/">← All Items</a>
+  <h1 id="page-title">—</h1>
+  <p class="meta" id="page-meta"></p>
+
+  <div class="warning">
+    <span>⚠</span>
+    <span>Total stock values are estimated from observed current stock and may not reflect actual initial inventory. Sales counts may be inaccurate.</span>
+  </div>
+
+  <div class="status-bar">
+    <div class="dot" id="dot"></div>
+    <span id="status-text">Connecting...</span>
+    <span class="next-refresh" id="next-refresh"></span>
+  </div>
+
+  <div class="total-bar">
+    <div>
+      <div class="total-label">Total sold (all members)</div>
+      <div class="total-value" id="total-sales">—</div>
+    </div>
+  </div>
+
+  <div class="section-label">By Member</div>
+  <div class="grid" id="grid"></div>
+
+  <script>
+    const ITEM_CONFIG = {
+      '7565709739': {
+        label: 'Day1 宽幅拍立得',
+        stocks: { 'KUNHO': 699699, 'YOUMIN': 985477, 'XAYDEN': 987130, 'MINJE': 875395, 'MASAMI': 987500, 'HYUNBIN': 998533, 'ON:N': 987423 }
+      },
+      '7565710019': {
+        label: 'Day1卡套装饰会',
+        stocks: { 'KUNHO': 984766, 'YOUMIN': 980640, 'XAYDEN': 966266, 'MINJE': 669733, 'MASAMI': 669772, 'HYUNBIN': 965555, 'ON:N': 666566 }
+      },
+      '7526988904': {
+        label: 'Day1视频拍摄会',
+        stocks: { 'KUNHO': 999688, 'YOUMIN': 999833, 'XAYDEN': 999510, 'MINJE': 999805, 'MASAMI': 999910, 'HYUNBIN': 999700, 'ON:N': 999877 }
+      },
+      '7719424307': {
+        label: 'Day1小分队拍立得',
+        members: ['RAP LINE', 'VOCAL LINE'],
+        stocks: { 'RAP LINE': 488444, 'VOCAL LINE': 548985 }
+      }
+    };
+    const DEFAULT_MEMBERS = ['KUNHO', 'YOUMIN', 'XAYDEN', 'MINJE', 'MASAMI', 'HYUNBIN', 'ON:N'];
+    const INTERVAL = 15000;
+
+    const ITEM_ID = window.location.pathname.split('/')[2];
+    const cfg = ITEM_CONFIG[ITEM_ID];
+    const MEMBERS = cfg ? (cfg.members || DEFAULT_MEMBERS) : DEFAULT_MEMBERS;
+
+    if (!cfg) {
+      document.body.innerHTML = '<p style="padding:32px;color:#888">Item not found. <a href="/">← Back</a></p>';
+    } else {
+      document.title = cfg.label + ' — Sales Tracker';
+      document.getElementById('page-title').textContent = cfg.label;
+      document.getElementById('page-meta').textContent = 'Item #' + ITEM_ID + ' · ' + MEMBERS.length + ' members';
+    }
+
+    let prevSales = {}, countdownTimer;
+    function fmt(n) { return n.toLocaleString(); }
+    function now() { return new Date().toLocaleTimeString('en-US', { hour12: false }); }
+    function canonicalTitle(t) { return t.replace(/：/g, ':'); }
+
+    function buildGrid() {
+      const grid = document.getElementById('grid');
+      if (grid.children.length || !cfg) return;
+      MEMBERS.forEach(m => {
+        const card = document.createElement('a');
+        card.className = 'card';
+        card.id = 'card-' + m;
+        card.href = '/item/' + ITEM_ID + '/' + encodeURIComponent(m);
+        card.innerHTML = `
+          <div class="member-name">${m}</div>
+          <div class="sales-row">
+            <div class="sales-count" id="sales-${m}">—</div>
+            <div class="sales-label">sold</div>
+          </div>
+          <div class="stock-sub" id="stock-${m}"></div>
+          <div class="delta-badge" id="badge-${m}"></div>`;
+        grid.appendChild(card);
+      });
+    }
+
+    function update(data) {
+      if (!cfg) return;
+      let total = 0;
+      data.result.skuInfos.forEach(sku => {
+        const info = sku.skuInfo;
+        const title = canonicalTitle(info.title);
+        const max = cfg.stocks[title];
+        if (max === undefined) return;
+        const sales = max - info.stock;
+        total += sales;
+        document.getElementById('sales-' + title).textContent = fmt(sales);
+        const stockEl = document.getElementById('stock-' + title);
+        if (stockEl) stockEl.textContent = fmt(info.stock) + ' left of ~' + fmt(max);
+        const prev = prevSales[title];
+        if (prev !== undefined && sales !== prev) {
+          const delta = sales - prev;
+          const badge = document.getElementById('badge-' + title);
+          const card  = document.getElementById('card-'  + title);
+          badge.textContent = (delta > 0 ? '+' : '') + fmt(delta);
+          badge.className = 'delta-badge visible ' + (delta > 0 ? 'up' : 'down');
+          card.classList.add('changed');
+          setTimeout(() => { badge.classList.remove('visible'); card.classList.remove('changed'); }, 5000);
+        }
+        prevSales[title] = sales;
+      });
+      document.getElementById('total-sales').textContent = fmt(total);
+    }
+
+    function setStatus(ok, text) {
+      document.getElementById('dot').className = 'dot ' + (ok ? 'active' : 'error');
+      document.getElementById('status-text').textContent = text;
+    }
+
+    function startCountdown() {
+      clearInterval(countdownTimer);
+      let c = INTERVAL / 1000;
+      const el = document.getElementById('next-refresh');
+      el.textContent = 'Next refresh in ' + c + 's';
+      countdownTimer = setInterval(() => {
+        c--;
+        el.textContent = c > 0 ? 'Next refresh in ' + c + 's' : 'Refreshing...';
+        if (c <= 0) clearInterval(countdownTimer);
+      }, 1000);
+    }
+
+    async function fetchStock() {
+      if (!cfg) return;
+      try {
+        const data = await fetch('/api/stockItem?itemId=' + ITEM_ID).then(r => r.json());
+        if (data.status.code !== 0) throw new Error(data.status.message);
+        update(data);
+        setStatus(true, 'Live · ' + now());
+      } catch (e) { setStatus(false, 'Error: ' + e.message); }
+      startCountdown();
+    }
+
+    buildGrid();
+    fetchStock();
+    setInterval(fetchStock, INTERVAL);
+  </script>
+</body>
+</html>

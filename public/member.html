@@ -11,7 +11,8 @@
     .back { font-size: 13px; color: #888; display: inline-block; margin-bottom: 20px; transition: color 0.2s; }
     .back:hover { color: #333; }
     h1 { font-size: 18px; font-weight: 700; margin-bottom: 2px; }
-    .meta { font-size: 13px; color: #888; margin-bottom: 20px; }
+    .meta { font-size: 13px; color: #888; margin-bottom: 16px; }
+    .warning { background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 10px 14px; font-size: 12px; color: #92400e; margin-bottom: 20px; display: flex; gap: 8px; align-items: flex-start; line-height: 1.5; }
     .status-bar { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #888; margin-bottom: 20px; }
     .dot { width: 8px; height: 8px; border-radius: 50%; background: #ccc; }
     .dot.active { background: #16a34a; }
@@ -37,9 +38,14 @@
   </style>
 </head>
 <body>
-  <a class="back" href="/">← All Members</a>
-  <h1 id="page-title">…-sold_log</h1>
+  <a class="back" id="back-link" href="/">← Back</a>
+  <h1 id="page-title">—</h1>
   <p class="meta" id="page-meta"></p>
+
+  <div class="warning">
+    <span>⚠</span>
+    <span>Total stock value is estimated from observed current stock and may not reflect actual initial inventory. Sales counts may be inaccurate.</span>
+  </div>
 
   <div class="status-bar">
     <div class="dot" id="dot"></div>
@@ -61,7 +67,7 @@
     <div class="summary-card">
       <div class="summary-label">Stock Left</div>
       <div class="summary-value" id="sum-stock">—</div>
-      <div class="summary-sub">of 888,686</div>
+      <div class="summary-sub" id="sum-stock-sub">of ~—</div>
     </div>
   </div>
 
@@ -72,27 +78,54 @@
   </table>
 
   <script>
-    const MAX_STOCK = 888686;
-    const MEMBERS = ['KUNHO','YOUMIN','XAYDEN','MINJE','MASAMI','HYUNBIN','ON:N'];
+    const ITEM_CONFIG = {
+      '7565709739': {
+        label: 'Day1 宽幅拍立得',
+        stocks: { 'KUNHO': 699699, 'YOUMIN': 985477, 'XAYDEN': 987130, 'MINJE': 875395, 'MASAMI': 987500, 'HYUNBIN': 998533, 'ON:N': 987423 }
+      },
+      '7565710019': {
+        label: 'Day1卡套装饰会',
+        stocks: { 'KUNHO': 984766, 'YOUMIN': 980640, 'XAYDEN': 966266, 'MINJE': 669733, 'MASAMI': 669772, 'HYUNBIN': 965555, 'ON:N': 666566 }
+      },
+      '7526988904': {
+        label: 'Day1视频拍摄会',
+        stocks: { 'KUNHO': 999688, 'YOUMIN': 999833, 'XAYDEN': 999510, 'MINJE': 999805, 'MASAMI': 999910, 'HYUNBIN': 999700, 'ON:N': 999877 }
+      },
+      '7719424307': {
+        label: 'Day1小分队拍立得',
+        members: ['RAP LINE', 'VOCAL LINE'],
+        stocks: { 'RAP LINE': 488444, 'VOCAL LINE': 548985 }
+      }
+    };
+    const DEFAULT_MEMBERS = ['KUNHO', 'YOUMIN', 'XAYDEN', 'MINJE', 'MASAMI', 'HYUNBIN', 'ON:N'];
     const INTERVAL = 15000;
-    let prevSales = null, countdownTimer;
 
-    // read member from URL path: /member/KUNHO
-    const MEMBER = decodeURIComponent(window.location.pathname.split('/').pop());
+    const parts = window.location.pathname.split('/'); // ['', 'item', itemId, member]
+    const ITEM_ID = parts[2];
+    const MEMBER  = decodeURIComponent(parts[3] || '');
+    const cfg = ITEM_CONFIG[ITEM_ID];
+    const MEMBERS = cfg ? (cfg.members || DEFAULT_MEMBERS) : DEFAULT_MEMBERS;
+    const MAX_STOCK = cfg && cfg.stocks[MEMBER];
+    const HISTORY_KEY = ITEM_ID + ':' + MEMBER;
 
-    if (!MEMBERS.includes(MEMBER)) {
-      document.body.innerHTML = '<p style="padding:32px;color:#888">Member not found. <a href="/">← Back</a></p>';
+    if (!cfg || !MEMBERS.includes(MEMBER)) {
+      document.body.innerHTML = '<p style="padding:32px;color:#888">Not found. <a href="/">← Back</a></p>';
     } else {
-      document.title = MEMBER + '-sold_log';
+      document.title = MEMBER + '-sold_log · ' + cfg.label;
       document.getElementById('page-title').textContent = MEMBER + '-sold_log';
-      document.getElementById('page-meta').textContent = 'Item #7553485595 · Base stock: 888,686';
+      document.getElementById('page-meta').textContent = cfg.label + ' · Item #' + ITEM_ID + ' · Base stock: ~' + MAX_STOCK.toLocaleString() + ' (estimated)';
+      document.getElementById('back-link').href = '/item/' + ITEM_ID;
+      document.getElementById('back-link').textContent = '← ' + cfg.label;
       document.getElementById('table-caption').textContent = MEMBER + '-sold_log';
+      document.getElementById('sum-stock-sub').textContent = 'of ~' + MAX_STOCK.toLocaleString();
     }
 
+    let prevSales = null, countdownTimer;
     function fmt(n) { return n.toLocaleString(); }
+    function canonicalTitle(t) { return t.replace(/：/g, ':'); }
     function tsNow() {
-      const d = new Date(), pad = n => String(n).padStart(2,'0');
-      return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+' '+pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());
+      const d = new Date(), pad = n => String(n).padStart(2, '0');
+      return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
     }
 
     function addRow(ts, sales, delta) {
@@ -101,46 +134,44 @@
       let dc = 'delta zero', dt = '—';
       if (delta !== null) {
         if (delta > 0)      { dc = 'delta up';   dt = '+' + fmt(delta); }
-        else if (delta < 0) { dc = 'delta down';  dt = fmt(delta); }
+        else if (delta < 0) { dc = 'delta down'; dt = fmt(delta); }
       }
-      tr.innerHTML = '<td class="ts">'+ts+'</td><td class="sold-val">'+fmt(sales)+'</td><td class="'+dc+'">'+dt+'</td>';
+      tr.innerHTML = '<td class="ts">' + ts + '</td><td class="sold-val">' + fmt(sales) + '</td><td class="' + dc + '">' + dt + '</td>';
       tbody.prepend(tr);
     }
 
-    async function saveEntry(key, ts, sold, delta) {
+    async function saveEntry(ts, sold, delta) {
       try {
         await fetch('/api/save', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ key, ts, sold, delta }),
+          body: JSON.stringify({ key: HISTORY_KEY, ts, sold, delta }),
         });
-      } catch(e) { /* non-critical */ }
+      } catch (e) { /* non-critical */ }
     }
 
     async function loadHistory() {
       try {
-        const entries = await fetch('/api/history?key=' + encodeURIComponent(MEMBER)).then(r => r.json());
+        const entries = await fetch('/api/history?key=' + encodeURIComponent(HISTORY_KEY)).then(r => r.json());
         if (!entries.length) return;
-        // entries are newest-first from Redis; render them oldest-first into table
         [...entries].reverse().forEach(e => addRow(e.ts, e.sold, e.delta));
         const latest = entries[0];
         prevSales = latest.sold;
         document.getElementById('sum-sold').textContent = fmt(latest.sold);
         document.getElementById('sum-stock').textContent = fmt(MAX_STOCK - latest.sold);
-      } catch(e) { /* no history yet */ }
+      } catch (e) { /* no history yet */ }
     }
 
     function update(data) {
-      const sku = data.result.skuInfos.find(s => s.skuInfo.title === MEMBER);
+      const sku = data.result.skuInfos.find(s => canonicalTitle(s.skuInfo.title) === MEMBER);
       if (!sku) return;
       const info = sku.skuInfo;
       const sales = MAX_STOCK - info.stock;
       const ts = tsNow();
       const delta = prevSales !== null ? sales - prevSales : null;
-      // only log a row when stock actually changes
       if (delta === null || delta !== 0) {
         addRow(ts, sales, delta);
-        saveEntry(MEMBER, ts, sales, delta);
+        saveEntry(ts, sales, delta);
       }
       document.getElementById('sum-sold').textContent = fmt(sales);
       document.getElementById('sum-stock').textContent = fmt(info.stock);
@@ -173,12 +204,13 @@
     }
 
     async function fetchStock() {
+      if (!cfg || !MEMBERS.includes(MEMBER)) return;
       try {
-        const data = await fetch('/api/stock').then(r => r.json());
+        const data = await fetch('/api/stockItem?itemId=' + ITEM_ID).then(r => r.json());
         if (data.status.code !== 0) throw new Error(data.status.message);
         update(data);
         setStatus(true, 'Live · ' + tsNow().split(' ')[1]);
-      } catch(e) { setStatus(false, 'Error: ' + e.message); }
+      } catch (e) { setStatus(false, 'Error: ' + e.message); }
       startCountdown();
     }
 

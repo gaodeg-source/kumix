@@ -15,28 +15,18 @@
     .dot.active { background: #16a34a; }
     .dot.error  { background: #dc2626; }
     .next-refresh { font-size: 12px; color: #aaa; margin-left: auto; }
-    .total-bar { background: #fff; border: 1px solid #e0e0e0; border-radius: 10px; padding: 16px 20px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; }
-    .total-label { font-size: 13px; color: #888; }
-    .total-value { font-size: 24px; font-weight: 800; }
-    .section-label { font-size: 11px; font-weight: 700; color: #aaa; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 10px; margin-top: 20px; }
+    .section-label { font-size: 11px; font-weight: 700; color: #aaa; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 10px; }
     .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
     .card { background: #fff; border: 1px solid #e0e0e0; border-radius: 10px; padding: 18px 20px; display: block; transition: border-color 0.2s, box-shadow 0.2s; }
-    .card:hover { border-color: #aaa; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+    .card:not(.tba):hover { border-color: #aaa; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+    .card.tba { opacity: 0.4; cursor: default; pointer-events: none; }
     .card.changed { border-color: #16a34a; }
-    .member-name { font-size: 11px; font-weight: 700; color: #888; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 10px; }
+    .item-label { font-size: 11px; font-weight: 700; color: #888; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+    .arrow { font-size: 14px; color: #ccc; }
     .sales-row { display: flex; align-items: baseline; gap: 8px; }
     .sales-count { font-size: 32px; font-weight: 800; color: #111; line-height: 1; }
     .sales-label { font-size: 12px; color: #aaa; }
-    .delta-badge { display: inline-block; font-size: 12px; font-weight: 700; border-radius: 5px; padding: 1px 7px; margin-top: 8px; opacity: 0; transition: opacity 0.3s; }
-    .delta-badge.up   { color: #16a34a; background: #dcfce7; }
-    .delta-badge.down { color: #dc2626; background: #fee2e2; }
-    .delta-badge.visible { opacity: 1; }
-    .item2-card { background: #fff; border: 1px solid #e0e0e0; border-radius: 10px; padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; transition: border-color 0.2s; }
-    .item2-card:hover { border-color: #aaa; }
-    .item2-name { font-size: 11px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 4px; }
-    .item2-sold { font-size: 26px; font-weight: 800; }
-    .item2-label { font-size: 12px; color: #aaa; }
-    .arrow { font-size: 18px; color: #ccc; }
+    .tba-val { font-size: 20px; font-weight: 800; color: #ccc; margin-top: 4px; }
   </style>
 </head>
 <body>
@@ -49,90 +39,95 @@
     <span class="next-refresh" id="next-refresh"></span>
   </div>
 
-  <div class="section-label">1v7 Special Video Call</div>
-  <a class="item2-card" href="/1v7" id="item2-card">
-    <div>
-      <div class="item2-name">1v7 Special Video Call</div>
-      <div class="sales-row">
-        <div class="item2-sold" id="item2-sold">—</div>
-        <div class="item2-label">sold</div>
-      </div>
-    </div>
-    <div class="arrow">→</div>
-  </a>
-
-  <div class="section-label">1v1 Video Call — by Member</div>
-  <div class="total-bar">
-    <div>
-      <div class="total-label">Total (all members)</div>
-      <div class="total-value" id="total-sales">—</div>
-    </div>
-  </div>
+  <div class="section-label">All Items</div>
   <div class="grid" id="grid"></div>
 
   <script>
-    const MAX_STOCK = 888686;
-    const MEMBERS = ['KUNHO','YOUMIN','XAYDEN','MINJE','MASAMI','HYUNBIN','ON:N'];
-    const ITEM2_MAX = 999999288;
+    const ITEM_CONFIG = {
+      '7565709739': {
+        label: 'Day1 宽幅拍立得',
+        stocks: { 'KUNHO': 699699, 'YOUMIN': 985477, 'XAYDEN': 987130, 'MINJE': 875395, 'MASAMI': 987500, 'HYUNBIN': 998533, 'ON:N': 987423 }
+      },
+      '7565710019': {
+        label: 'Day1卡套装饰会',
+        stocks: { 'KUNHO': 984766, 'YOUMIN': 980640, 'XAYDEN': 966266, 'MINJE': 669733, 'MASAMI': 669772, 'HYUNBIN': 965555, 'ON:N': 666566 }
+      },
+      '7526988904': {
+        label: 'Day1视频拍摄会',
+        stocks: { 'KUNHO': 999688, 'YOUMIN': 999833, 'XAYDEN': 999510, 'MINJE': 999805, 'MASAMI': 999910, 'HYUNBIN': 999700, 'ON:N': 999877 }
+      },
+      '7719424307': {
+        label: 'Day1小分队拍立得',
+        members: ['RAP LINE', 'VOCAL LINE'],
+        stocks: { 'RAP LINE': 488444, 'VOCAL LINE': 548985 }
+      }
+    };
+    // slots 2-13 filled in as links are added
+    const ITEM_SLOTS = [
+      '7565709739',
+      '7565710019',
+      '7526988904',
+      '7719424307',
+      null, null, null,
+      null, null, null, null, null, null
+    ];
     const INTERVAL = 15000;
-    let prevSales = {}, prevItem2 = null, countdownTimer;
+    let prevTotals = {}, countdownTimer;
 
     function fmt(n) { return n.toLocaleString(); }
     function now() { return new Date().toLocaleTimeString('en-US', { hour12: false }); }
+    function canonicalTitle(t) { return t.replace(/：/g, ':'); }
 
     function buildGrid() {
       const grid = document.getElementById('grid');
-      if (grid.children.length) return;
-      MEMBERS.forEach(m => {
-        const card = document.createElement('a');
-        card.className = 'card';
-        card.id = 'card-' + m;
-        card.href = '/member/' + encodeURIComponent(m);
-        card.innerHTML = `
-          <div class="member-name">${m}</div>
-          <div class="sales-row">
-            <div class="sales-count" id="sales-${m}">—</div>
-            <div class="sales-label">sold</div>
-          </div>
-          <div class="delta-badge" id="badge-${m}"></div>`;
-        grid.appendChild(card);
+      ITEM_SLOTS.forEach((id, i) => {
+        const num = String(i + 1).padStart(2, '0');
+        const el = document.createElement(id ? 'a' : 'div');
+        el.className = 'card' + (id ? '' : ' tba');
+        el.id = 'card-' + i;
+        if (id) el.href = '/item/' + id;
+        const cfg = id ? ITEM_CONFIG[id] : null;
+        const label = cfg ? cfg.label : 'Item ' + num;
+        el.innerHTML = id
+          ? `<div class="item-label">${label}<span class="arrow">→</span></div>
+             <div class="sales-row">
+               <div class="sales-count" id="total-${id}">—</div>
+               <div class="sales-label">sold</div>
+             </div>`
+          : `<div class="item-label">${label}</div>
+             <div class="tba-val">—</div>`;
+        grid.appendChild(el);
       });
     }
 
-    function update1(data) {
-      buildGrid();
-      let total = 0;
-      data.result.skuInfos.forEach(sku => {
-        const info = sku.skuInfo;
-        const sales = MAX_STOCK - info.stock;
-        total += sales;
-        document.getElementById('sales-' + info.title).textContent = fmt(sales);
-        const prev = prevSales[info.title];
-        if (prev !== undefined && sales !== prev) {
-          const delta = sales - prev;
-          const badge = document.getElementById('badge-' + info.title);
-          const card  = document.getElementById('card-'  + info.title);
-          badge.textContent = (delta > 0 ? '+' : '') + fmt(delta);
-          badge.className = 'delta-badge visible ' + (delta > 0 ? 'up' : 'down');
-          card.classList.add('changed');
-          setTimeout(() => { badge.classList.remove('visible'); card.classList.remove('changed'); }, 5000);
-        }
-        prevSales[info.title] = sales;
-      });
-      document.getElementById('total-sales').textContent = fmt(total);
-    }
-
-    function update2(data) {
-      const sales = ITEM2_MAX - data.result.itemStock;
-      const prev = prevItem2;
-      document.getElementById('item2-sold').textContent = fmt(sales);
-      if (prev !== null && sales !== prev) {
-        const delta = sales - prev;
-        const card = document.getElementById('item2-card');
-        card.classList.add('changed');
-        setTimeout(() => card.classList.remove('changed'), 5000);
-      }
-      prevItem2 = sales;
+    async function fetchAll() {
+      const activeIds = ITEM_SLOTS.filter(Boolean);
+      let hasError = false;
+      await Promise.all(activeIds.map(async (id) => {
+        try {
+          const data = await fetch('/api/stockItem?itemId=' + id).then(r => r.json());
+          if (data.status.code !== 0) return;
+          const cfg = ITEM_CONFIG[id];
+          let total = 0;
+          data.result.skuInfos.forEach(sku => {
+            const info = sku.skuInfo;
+            const max = cfg.stocks[canonicalTitle(info.title)];
+            if (max !== undefined) total += max - info.stock;
+          });
+          const el = document.getElementById('total-' + id);
+          if (el) {
+            const prev = prevTotals[id];
+            el.textContent = fmt(total);
+            if (prev !== undefined && total !== prev) {
+              const card = document.getElementById('card-' + ITEM_SLOTS.indexOf(id));
+              if (card) { card.classList.add('changed'); setTimeout(() => card.classList.remove('changed'), 5000); }
+            }
+            prevTotals[id] = total;
+          }
+        } catch (e) { hasError = true; }
+      }));
+      setStatus(!hasError, hasError ? 'Error fetching data' : 'Live · ' + now());
+      startCountdown();
     }
 
     function setStatus(ok, text) {
@@ -152,19 +147,7 @@
       }, 1000);
     }
 
-    async function fetchAll() {
-      try {
-        const [d1, d2] = await Promise.all([
-          fetch('/api/stock').then(r => r.json()),
-          fetch('/api/stock2').then(r => r.json()),
-        ]);
-        if (d1.status.code === 0) update1(d1);
-        if (d2.status.code === 0) update2(d2);
-        setStatus(true, 'Live · ' + now());
-      } catch(e) { setStatus(false, 'Error: ' + e.message); }
-      startCountdown();
-    }
-
+    buildGrid();
     fetchAll();
     setInterval(fetchAll, INTERVAL);
   </script>
